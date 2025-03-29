@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextProps {
   session: Session | null;
@@ -26,6 +27,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
+
+  // Function to check if a user is an admin
+  const checkIfAdmin = async (email: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('admin_users')
+        .select('email')
+        .eq('email', email)
+        .maybeSingle();
+      
+      if (error) {
+        console.error('Error checking admin status:', error);
+        return false;
+      }
+      
+      return !!data;
+    } catch (error) {
+      console.error('Error in admin check:', error);
+      return false;
+    }
+  };
 
   useEffect(() => {
     // Set up auth listener
@@ -35,15 +58,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(currentSession?.user ?? null);
         
         // Verificar se é admin usando setTimeout para evitar deadlocks
-        if (currentSession?.user) {
+        if (currentSession?.user?.email) {
           setTimeout(async () => {
-            const { data } = await supabase
-              .from('admin_users')
-              .select('*')
-              .eq('email', currentSession.user.email)
-              .single();
+            const isUserAdmin = await checkIfAdmin(currentSession.user.email);
+            setIsAdmin(isUserAdmin);
             
-            setIsAdmin(!!data);
+            if (event === 'SIGNED_IN' && !isUserAdmin) {
+              // Se logou mas não é admin, fazer logout e mostrar mensagem
+              await supabase.auth.signOut();
+              toast({
+                title: "Acesso negado",
+                description: "Você não tem permissão para acessar a área administrativa.",
+                variant: "destructive",
+              });
+            }
           }, 0);
         } else {
           setIsAdmin(false);
@@ -52,23 +80,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     // Verificar sessão inicial
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+    supabase.auth.getSession().then(async ({ data: { session: initialSession } }) => {
       setSession(initialSession);
       setUser(initialSession?.user ?? null);
       
-      if (initialSession?.user) {
-        supabase
-          .from('admin_users')
-          .select('*')
-          .eq('email', initialSession.user.email)
-          .single()
-          .then(({ data }) => {
-            setIsAdmin(!!data);
-            setIsLoading(false);
-          });
-      } else {
-        setIsLoading(false);
+      if (initialSession?.user?.email) {
+        const isUserAdmin = await checkIfAdmin(initialSession.user.email);
+        setIsAdmin(isUserAdmin);
       }
+      
+      setIsLoading(false);
     });
 
     return () => {

@@ -5,8 +5,9 @@ import Layout from '../components/Layout';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { UserCircle, KeyRound, Loader2 } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from '@/context/AuthContext';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -16,26 +17,22 @@ const Login: React.FC = () => {
   
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, isAdmin } = useAuth();
 
   useEffect(() => {
-    // Verificar se o usuário já está autenticado
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        navigate('/admin');
-      }
-      setCheckingSession(false);
-    };
-
-    checkSession();
-  }, [navigate]);
+    // Verificar se o usuário já está autenticado e é admin
+    if (user && isAdmin) {
+      navigate('/admin');
+    }
+    setCheckingSession(false);
+  }, [user, isAdmin, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -44,38 +41,22 @@ const Login: React.FC = () => {
         throw error;
       }
 
-      if (data.user) {
-        // Verificar se o usuário está na tabela admin_users
-        const { data: adminData, error: adminError } = await supabase
-          .from('admin_users')
-          .select('*')
-          .eq('email', email)
-          .single();
-
-        if (adminError || !adminData) {
-          // Se não for admin, fazer logout e mostrar erro
-          await supabase.auth.signOut();
-          toast({
-            title: "Acesso negado",
-            description: "Você não tem permissão para acessar a área administrativa.",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Login realizado com sucesso!",
-            description: "Bem-vindo à área administrativa!",
-            variant: "default",
-          });
-          navigate('/admin');
-        }
-      }
+      // Não redirecionar aqui - o AuthContext vai verificar se é admin
+      // Se não for admin, ele fará logout automaticamente
+      
+      toast({
+        title: "Login bem-sucedido",
+        description: "Verificando suas permissões...",
+      });
+      
+      // O redirecionamento será feito pelo useEffect quando isAdmin for atualizado
+      
     } catch (error: any) {
       toast({
         title: "Erro ao fazer login",
         description: error.message || "Email ou senha incorretos. Tente novamente.",
         variant: "destructive",
       });
-    } finally {
       setLoading(false);
     }
   };
