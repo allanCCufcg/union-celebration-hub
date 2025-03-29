@@ -1,52 +1,94 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { UserCircle, KeyRound } from 'lucide-react';
+import { UserCircle, KeyRound, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-
-// Mock login - seria substituído pelo backend real
-const MOCK_EMAIL = "admin@casamento.com";
-const MOCK_PASSWORD = "casamento2024";
+import { supabase } from "@/integrations/supabase/client";
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleLogin = (e: React.FormEvent) => {
+  useEffect(() => {
+    // Verificar se o usuário já está autenticado
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        navigate('/admin');
+      }
+      setCheckingSession(false);
+    };
+
+    checkSession();
+  }, [navigate]);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     
-    // Simulando uma chamada de API
-    setTimeout(() => {
-      if (email === MOCK_EMAIL && password === MOCK_PASSWORD) {
-        // Simula um token de autenticação
-        localStorage.setItem('wedding_auth', 'true');
-        localStorage.setItem('wedding_user', JSON.stringify({ name: 'Carol & Allan' }));
-        
-        toast({
-          title: "Login realizado com sucesso!",
-          description: "Bem-vindo à área administrativa!",
-          variant: "default",
-        });
-        
-        navigate('/admin');
-      } else {
-        toast({
-          title: "Erro ao fazer login",
-          description: "Email ou senha incorretos. Tente novamente.",
-          variant: "destructive",
-        });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        throw error;
       }
+
+      if (data.user) {
+        // Verificar se o usuário está na tabela admin_users
+        const { data: adminData, error: adminError } = await supabase
+          .from('admin_users')
+          .select('*')
+          .eq('email', email)
+          .single();
+
+        if (adminError || !adminData) {
+          // Se não for admin, fazer logout e mostrar erro
+          await supabase.auth.signOut();
+          toast({
+            title: "Acesso negado",
+            description: "Você não tem permissão para acessar a área administrativa.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Login realizado com sucesso!",
+            description: "Bem-vindo à área administrativa!",
+            variant: "default",
+          });
+          navigate('/admin');
+        }
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erro ao fazer login",
+        description: error.message || "Email ou senha incorretos. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
+
+  if (checkingSession) {
+    return (
+      <Layout>
+        <div className="pt-28 pb-20 bg-wedding-cream min-h-[50vh] flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-wedding-gold" />
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -104,7 +146,12 @@ const Login: React.FC = () => {
                 className="w-full bg-wedding-gold hover:bg-wedding-gold/90"
                 disabled={loading}
               >
-                {loading ? "Entrando..." : "Entrar"}
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Entrando...
+                  </>
+                ) : "Entrar"}
               </Button>
               
               <div className="text-center text-sm text-muted-foreground mt-4">

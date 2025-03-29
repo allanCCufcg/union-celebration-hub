@@ -9,7 +9,117 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      admin_users: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      gifts: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          image: string | null
+          name: string
+          price: number | null
+          purchased: boolean | null
+          purchased_at: string | null
+          purchased_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image?: string | null
+          name: string
+          price?: number | null
+          purchased?: boolean | null
+          purchased_at?: string | null
+          purchased_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image?: string | null
+          name?: string
+          price?: number | null
+          purchased?: boolean | null
+          purchased_at?: string | null
+          purchased_by?: string | null
+        }
+        Relationships: []
+      }
+      guests: {
+        Row: {
+          attending: boolean | null
+          created_at: string
+          email: string | null
+          id: string
+          message: string | null
+          name: string
+          number_of_guests: number | null
+          phone: string | null
+        }
+        Insert: {
+          attending?: boolean | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          message?: string | null
+          name: string
+          number_of_guests?: number | null
+          phone?: string | null
+        }
+        Update: {
+          attending?: boolean | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          message?: string | null
+          name?: string
+          number_of_guests?: number | null
+          phone?: string | null
+        }
+        Relationships: []
+      }
+      messages: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          message: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          message: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          message?: string
+          name?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

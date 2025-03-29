@@ -1,19 +1,83 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
-import { Gift, Heart } from 'lucide-react';
-import { gifts } from '../data/gifts';
+import { Gift, Heart, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+
+interface GiftItem {
+  id: string;
+  name: string;
+  description: string | null;
+  image: string | null;
+  price: number;
+  purchased: boolean;
+}
 
 const Gifts: React.FC = () => {
   const { toast } = useToast();
+  const [gifts, setGifts] = useState<GiftItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handlePurchase = (giftId: number, giftName: string) => {
-    toast({
-      title: "Obrigado pelo presente!",
-      description: `Sua contribuição para "${giftName}" foi registrada. Carol e Allan agradecerão pessoalmente!`,
-      variant: "default",
-    });
+  useEffect(() => {
+    fetchGifts();
+  }, []);
+
+  const fetchGifts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('gifts')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        throw error;
+      }
+      
+      setGifts(data || []);
+    } catch (error: any) {
+      console.error('Erro ao carregar presentes:', error.message);
+      toast({
+        title: "Erro ao carregar presentes",
+        description: "Não foi possível carregar a lista de presentes. Tente novamente mais tarde.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePurchase = async (giftId: string, giftName: string) => {
+    try {
+      const { error } = await supabase
+        .from('gifts')
+        .update({
+          purchased: true,
+          purchased_at: new Date().toISOString()
+        })
+        .eq('id', giftId);
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Atualizar estado local
+      setGifts(gifts.map(gift => 
+        gift.id === giftId ? { ...gift, purchased: true } : gift
+      ));
+      
+      toast({
+        title: "Obrigado pelo presente!",
+        description: `Sua contribuição para "${giftName}" foi registrada. Carol e Allan agradecerão pessoalmente!`,
+        variant: "default",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro ao registrar presente",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -46,55 +110,67 @@ const Gifts: React.FC = () => {
             </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {gifts.map((gift) => (
-              <div 
-                key={gift.id} 
-                className={`bg-white rounded-lg overflow-hidden shadow-md border ${
-                  gift.purchased ? 'border-gray-200' : 'border-wedding-rose/20'
-                } transition-all hover:shadow-lg`}
-              >
-                <div className="relative">
-                  <img 
-                    src={gift.image} 
-                    alt={gift.name} 
-                    className={`w-full h-48 object-cover ${
-                      gift.purchased ? 'opacity-50' : ''
-                    }`}
-                  />
-                  
-                  {gift.purchased && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                      <div className="bg-white text-wedding-rose px-4 py-2 rounded-full font-medium">
-                        Presente Adquirido
-                      </div>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="p-5">
-                  <h3 className="font-playfair text-xl mb-2">{gift.name}</h3>
-                  <p className="text-muted-foreground text-sm mb-4">{gift.description}</p>
-                  
-                  <div className="flex justify-between items-center">
-                    <span className="text-wedding-gold font-medium">
-                      R$ {gift.price.toFixed(2)}
-                    </span>
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-10 w-10 animate-spin text-wedding-gold" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {gifts.map((gift) => (
+                <div 
+                  key={gift.id} 
+                  className={`bg-white rounded-lg overflow-hidden shadow-md border ${
+                    gift.purchased ? 'border-gray-200' : 'border-wedding-rose/20'
+                  } transition-all hover:shadow-lg`}
+                >
+                  <div className="relative">
+                    <img 
+                      src={gift.image || 'https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&w=800&q=80'} 
+                      alt={gift.name} 
+                      className={`w-full h-48 object-cover ${
+                        gift.purchased ? 'opacity-50' : ''
+                      }`}
+                    />
                     
-                    {!gift.purchased && (
-                      <button 
-                        className="flex items-center gap-2 bg-wedding-gold text-white px-4 py-2 rounded-full text-sm hover:bg-wedding-gold/90 transition-colors"
-                        onClick={() => handlePurchase(gift.id, gift.name)}
-                      >
-                        <Gift className="w-4 h-4" />
-                        <span>Presentear</span>
-                      </button>
+                    {gift.purchased && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                        <div className="bg-white text-wedding-rose px-4 py-2 rounded-full font-medium">
+                          Presente Adquirido
+                        </div>
+                      </div>
                     )}
                   </div>
+                  
+                  <div className="p-5">
+                    <h3 className="font-playfair text-xl mb-2">{gift.name}</h3>
+                    <p className="text-muted-foreground text-sm mb-4">{gift.description}</p>
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-wedding-gold font-medium">
+                        R$ {gift.price.toFixed(2)}
+                      </span>
+                      
+                      {!gift.purchased && (
+                        <button 
+                          className="flex items-center gap-2 bg-wedding-gold text-white px-4 py-2 rounded-full text-sm hover:bg-wedding-gold/90 transition-colors"
+                          onClick={() => handlePurchase(gift.id, gift.name)}
+                        >
+                          <Gift className="w-4 h-4" />
+                          <span>Presentear</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
+          
+          {!loading && gifts.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground mb-4">Não há presentes disponíveis no momento.</p>
+            </div>
+          )}
           
           <div className="mt-12 text-center">
             <p className="text-muted-foreground mb-4">

@@ -1,12 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Heart, Menu, X, UserCircle } from 'lucide-react';
+import { Heart, Menu, X, UserCircle, LogOut } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 const Navbar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
+  const { user, isAdmin, signOut } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -24,6 +26,11 @@ const Navbar: React.FC = () => {
   }, []);
 
   const toggleMenu = () => setIsOpen(!isOpen);
+  
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/');
+  };
   
   const navbarClasses = `fixed w-full z-50 transition-all duration-300 ${
     isScrolled ? 'bg-white shadow-md py-2' : 'bg-transparent py-4'
@@ -65,19 +72,33 @@ const Navbar: React.FC = () => {
           <NavLink to="/messages" className={navLinkClasses}>
             Mensagens
           </NavLink>
-          <NavLink to="/admin" className={navLinkClasses}>
-            Área dos Noivos
-          </NavLink>
+          {isAdmin && (
+            <NavLink to="/admin" className={navLinkClasses}>
+              Área dos Noivos
+            </NavLink>
+          )}
         </div>
 
-        {/* Admin login button (only on desktop) */}
-        <button 
-          onClick={() => navigate('/login')}
-          className="hidden md:flex items-center gap-2 text-wedding-gold hover:text-wedding-gold/80 transition-colors"
-        >
-          <UserCircle size={20} />
-          <span>Login</span>
-        </button>
+        {/* Admin login/logout button (only on desktop) */}
+        <div className="hidden md:flex items-center gap-2">
+          {user ? (
+            <button 
+              onClick={handleLogout}
+              className="flex items-center gap-2 text-wedding-gold hover:text-wedding-gold/80 transition-colors"
+            >
+              <LogOut size={20} />
+              <span>Sair</span>
+            </button>
+          ) : (
+            <button 
+              onClick={() => navigate('/login')}
+              className="flex items-center gap-2 text-wedding-gold hover:text-wedding-gold/80 transition-colors"
+            >
+              <UserCircle size={20} />
+              <span>Login</span>
+            </button>
+          )}
+        </div>
 
         {/* Mobile menu button */}
         <button className="md:hidden text-foreground" onClick={toggleMenu}>
@@ -110,13 +131,28 @@ const Navbar: React.FC = () => {
             <NavLink to="/messages" className="px-3 py-2 hover:bg-muted rounded-md" onClick={toggleMenu}>
               Mensagens
             </NavLink>
-            <NavLink to="/admin" className="px-3 py-2 hover:bg-muted rounded-md" onClick={toggleMenu}>
-              Área dos Noivos
-            </NavLink>
-            <NavLink to="/login" className="px-3 py-2 hover:bg-muted rounded-md flex items-center gap-2" onClick={toggleMenu}>
-              <UserCircle size={18} />
-              <span>Login</span>
-            </NavLink>
+            {isAdmin && (
+              <NavLink to="/admin" className="px-3 py-2 hover:bg-muted rounded-md" onClick={toggleMenu}>
+                Área dos Noivos
+              </NavLink>
+            )}
+            {user ? (
+              <button 
+                onClick={() => {
+                  handleLogout();
+                  toggleMenu();
+                }}
+                className="px-3 py-2 hover:bg-muted rounded-md flex items-center gap-2 text-left"
+              >
+                <LogOut size={18} />
+                <span>Sair</span>
+              </button>
+            ) : (
+              <NavLink to="/login" className="px-3 py-2 hover:bg-muted rounded-md flex items-center gap-2" onClick={toggleMenu}>
+                <UserCircle size={18} />
+                <span>Login</span>
+              </NavLink>
+            )}
           </div>
         </div>
       )}

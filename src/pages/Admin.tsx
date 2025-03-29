@@ -13,7 +13,8 @@ import {
   Edit,
   Trash,
   Save,
-  X
+  X,
+  Loader2
 } from 'lucide-react';
 import {
   Table,
@@ -25,22 +26,54 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
 
-// Exemplo de dados para presentes
-import { gifts as initialGifts } from '../data/gifts';
+interface Gift {
+  id: string;
+  name: string;
+  description: string | null;
+  image: string | null;
+  price: number;
+  purchased: boolean;
+  purchased_by: string | null;
+  purchased_at: string | null;
+}
+
+interface Guest {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  attending: boolean | null;
+  number_of_guests: number;
+  message: string | null;
+  created_at: string;
+}
+
+interface Message {
+  id: string;
+  name: string;
+  email: string | null;
+  message: string;
+  created_at: string;
+}
 
 const Admin: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { isAdmin, isLoading: authLoading, signOut } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
-  const [gifts, setGifts] = useState(initialGifts);
-  const [editingGift, setEditingGift] = useState<any>(null);
-  const [newGift, setNewGift] = useState({
-    id: 0,
+  const [gifts, setGifts] = useState<Gift[]>([]);
+  const [guests, setGuests] = useState<Guest[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [editingGift, setEditingGift] = useState<Gift | null>(null);
+  const [newGift, setNewGift] = useState<Omit<Gift, 'id'>>({
     name: '',
     description: '',
     image: 'https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&w=800&q=80',
     price: 0,
-    purchased: false
+    purchased: false,
+    purchased_by: null,
+    purchased_at: null
   });
   const [isAddingNew, setIsAddingNew] = useState(false);
   
@@ -48,83 +81,193 @@ const Admin: React.FC = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Verificar autenticação
-    const auth = localStorage.getItem('wedding_auth');
-    if (auth !== 'true') {
+    if (!authLoading && !isAdmin) {
       navigate('/login');
-    } else {
-      setIsAuthenticated(true);
     }
-    setIsLoading(false);
-  }, [navigate]);
+  }, [isAdmin, authLoading, navigate]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('wedding_auth');
-    localStorage.removeItem('wedding_user');
+  useEffect(() => {
+    if (isAdmin) {
+      fetchData();
+    }
+  }, [isAdmin]);
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      // Carregar presentes
+      const { data: giftsData, error: giftsError } = await supabase
+        .from('gifts')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (giftsError) {
+        throw giftsError;
+      }
+      
+      setGifts(giftsData);
+      
+      // Carregar convidados
+      const { data: guestsData, error: guestsError } = await supabase
+        .from('guests')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (guestsError) {
+        throw guestsError;
+      }
+      
+      setGuests(guestsData);
+      
+      // Carregar mensagens
+      const { data: messagesData, error: messagesError } = await supabase
+        .from('messages')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (messagesError) {
+        throw messagesError;
+      }
+      
+      setMessages(messagesData);
+      
+    } catch (error: any) {
+      console.error('Erro ao carregar dados:', error.message);
+      toast({
+        title: "Erro ao carregar dados",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await signOut();
     navigate('/login');
   };
 
-  const handleEditGift = (gift: any) => {
+  const handleEditGift = (gift: Gift) => {
     setEditingGift({ ...gift });
   };
 
-  const handleSaveGift = () => {
-    if (editingGift) {
+  const handleSaveGift = async () => {
+    if (!editingGift) return;
+    
+    try {
+      const { error } = await supabase
+        .from('gifts')
+        .update({
+          name: editingGift.name,
+          description: editingGift.description,
+          image: editingGift.image,
+          price: editingGift.price
+        })
+        .eq('id', editingGift.id);
+      
+      if (error) {
+        throw error;
+      }
+      
       setGifts(gifts.map(gift => 
         gift.id === editingGift.id ? editingGift : gift
       ));
       setEditingGift(null);
+      
       toast({
         title: "Presente atualizado",
         description: "O presente foi atualizado com sucesso!",
       });
+    } catch (error: any) {
+      toast({
+        title: "Erro ao atualizar presente",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
-  const handleDeleteGift = (id: number) => {
-    setGifts(gifts.filter(gift => gift.id !== id));
-    toast({
-      title: "Presente removido",
-      description: "O presente foi removido com sucesso!",
-    });
+  const handleDeleteGift = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('gifts')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        throw error;
+      }
+      
+      setGifts(gifts.filter(gift => gift.id !== id));
+      
+      toast({
+        title: "Presente removido",
+        description: "O presente foi removido com sucesso!",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro ao remover presente",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleAddNew = () => {
-    const newId = Math.max(...gifts.map(g => g.id), 0) + 1;
-    const giftToAdd = {
-      ...newGift,
-      id: newId,
-      price: Number(newGift.price)
-    };
-    
-    setGifts([...gifts, giftToAdd]);
-    setNewGift({
-      id: 0,
-      name: '',
-      description: '',
-      image: 'https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&w=800&q=80',
-      price: 0,
-      purchased: false
-    });
-    setIsAddingNew(false);
-    
-    toast({
-      title: "Presente adicionado",
-      description: "O novo presente foi adicionado com sucesso!",
-    });
+  const handleAddNew = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('gifts')
+        .insert({
+          name: newGift.name,
+          description: newGift.description,
+          image: newGift.image,
+          price: newGift.price,
+          purchased: false
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        throw error;
+      }
+      
+      setGifts([data, ...gifts]);
+      setNewGift({
+        name: '',
+        description: '',
+        image: 'https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&w=800&q=80',
+        price: 0,
+        purchased: false,
+        purchased_by: null,
+        purchased_at: null
+      });
+      setIsAddingNew(false);
+      
+      toast({
+        title: "Presente adicionado",
+        description: "O novo presente foi adicionado com sucesso!",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro ao adicionar presente",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
-  if (isLoading) {
+  if (authLoading || isLoading) {
     return (
       <Layout>
         <div className="pt-24 pb-12 min-h-screen flex items-center justify-center">
-          <p>Carregando...</p>
+          <Loader2 className="h-10 w-10 animate-spin text-wedding-gold" />
         </div>
       </Layout>
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAdmin) {
     return null; // Redirecionado pelo useEffect
   }
 
@@ -213,7 +356,7 @@ const Admin: React.FC = () => {
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium mb-1">Descrição</label>
                         <Input 
-                          value={newGift.description} 
+                          value={newGift.description || ''} 
                           onChange={(e) => setNewGift({...newGift, description: e.target.value})}
                           placeholder="Um lindo conjunto de panelas para o novo lar"
                         />
@@ -221,7 +364,7 @@ const Admin: React.FC = () => {
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium mb-1">URL da Imagem</label>
                         <Input 
-                          value={newGift.image} 
+                          value={newGift.image || ''} 
                           onChange={(e) => setNewGift({...newGift, image: e.target.value})}
                           placeholder="https://exemplo.com/imagem.jpg"
                         />
@@ -262,7 +405,7 @@ const Admin: React.FC = () => {
                             </TableCell>
                             <TableCell>
                               <Input 
-                                value={editingGift.description} 
+                                value={editingGift.description || ''} 
                                 onChange={(e) => setEditingGift({...editingGift, description: e.target.value})}
                               />
                             </TableCell>
@@ -343,24 +486,77 @@ const Admin: React.FC = () => {
             </TabsContent>
             
             <TabsContent value="guests" className="mt-6">
-              <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200 min-h-[400px] flex items-center justify-center">
-                <div className="text-center">
-                  <h3 className="font-medium mb-2">Lista de Convidados</h3>
-                  <p className="text-muted-foreground">
-                    Esta funcionalidade será implementada em breve...
-                  </p>
-                </div>
+              <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+                <h2 className="font-playfair text-xl mb-6">Lista de Convidados</h2>
+                
+                {guests.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Contato</TableHead>
+                        <TableHead>Presença</TableHead>
+                        <TableHead>Acompanhantes</TableHead>
+                        <TableHead>Mensagem</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {guests.map((guest) => (
+                        <TableRow key={guest.id}>
+                          <TableCell>{guest.name}</TableCell>
+                          <TableCell>
+                            {guest.email && <div>{guest.email}</div>}
+                            {guest.phone && <div>{guest.phone}</div>}
+                          </TableCell>
+                          <TableCell>
+                            {guest.attending === null ? (
+                              <span className="text-amber-600">Não respondeu</span>
+                            ) : guest.attending ? (
+                              <span className="text-green-600">Confirmado</span>
+                            ) : (
+                              <span className="text-red-600">Não comparecerá</span>
+                            )}
+                          </TableCell>
+                          <TableCell>{guest.number_of_guests}</TableCell>
+                          <TableCell className="max-w-xs truncate">{guest.message}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="text-center py-6">
+                    <p className="text-muted-foreground">Nenhum convidado confirmou presença ainda</p>
+                  </div>
+                )}
               </div>
             </TabsContent>
             
             <TabsContent value="messages" className="mt-6">
-              <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200 min-h-[400px] flex items-center justify-center">
-                <div className="text-center">
-                  <h3 className="font-medium mb-2">Mensagens Recebidas</h3>
-                  <p className="text-muted-foreground">
-                    Esta funcionalidade será implementada em breve...
-                  </p>
-                </div>
+              <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+                <h2 className="font-playfair text-xl mb-6">Mensagens Recebidas</h2>
+                
+                {messages.length > 0 ? (
+                  <div className="space-y-4">
+                    {messages.map((message) => (
+                      <div key={message.id} className="p-4 border border-gray-200 rounded-lg">
+                        <div className="flex justify-between mb-2">
+                          <div className="font-medium">{message.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {new Date(message.created_at).toLocaleDateString('pt-BR')}
+                          </div>
+                        </div>
+                        {message.email && (
+                          <div className="text-sm text-muted-foreground mb-2">{message.email}</div>
+                        )}
+                        <p className="text-sm">{message.message}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6">
+                    <p className="text-muted-foreground">Nenhuma mensagem recebida ainda</p>
+                  </div>
+                )}
               </div>
             </TabsContent>
           </Tabs>
