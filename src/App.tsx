@@ -11,6 +11,8 @@ import Gifts from "./pages/Gifts";
 import Rsvp from "./pages/Rsvp";
 import Gallery from "./pages/Gallery";
 import Messages from "./pages/Messages";
+import Login from "./pages/Login";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,6 +31,8 @@ const App = () => (
           <Route path="/rsvp" element={<Rsvp />} />
           <Route path="/gallery" element={<Gallery />} />
           <Route path="/messages" element={<Messages />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/admin" element={<Admin />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

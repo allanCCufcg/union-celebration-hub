@@ -23,9 +23,9 @@ const Hero: React.FC = () => {
       
       <div className="container-wedding text-center relative z-10 animate-fade-up">
         <h1 className="font-playfair text-5xl md:text-7xl lg:text-8xl mb-4 tracking-wide">
-          <span className="block">Júlia</span>
+          <span className="block">Carol</span>
           <span className="inline-block mx-2 md:mx-4 text-wedding-gold">&</span>
-          <span className="block">Miguel</span>
+          <span className="block">Allan</span>
         </h1>
         
         <p className="text-xl md:text-2xl mb-8 font-light">Vamos nos casar!</p>

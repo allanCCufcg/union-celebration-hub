@@ -13,7 +13,7 @@ const Footer: React.FC = () => {
             <div className="h-px bg-wedding-rose w-16"></div>
           </div>
           
-          <h3 className="font-playfair text-2xl mb-4">Júlia & Miguel</h3>
+          <h3 className="font-playfair text-2xl mb-4">Carol & Allan</h3>
           <p className="text-muted-foreground mb-6">12 de Dezembro de 2024</p>
           
           <div className="flex justify-center space-x-4 mb-8">
@@ -29,7 +29,7 @@ const Footer: React.FC = () => {
           </div>
           
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} · Júlia & Miguel · Todos os direitos reservados
+            © {new Date().getFullYear()} · Carol & Allan · Todos os direitos reservados
           </p>
         </div>
       </div>

@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
-import { NavLink } from 'react-router-dom';
-import { Heart, Menu, X } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { Heart, Menu, X, UserCircle } from 'lucide-react';
 
 const Navbar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -38,7 +39,7 @@ const Navbar: React.FC = () => {
       <div className="container-wedding flex justify-between items-center">
         <NavLink to="/" className="flex items-center space-x-2">
           <Heart className="h-6 w-6 text-wedding-rose" fill="currentColor" />
-          <span className="font-playfair text-xl font-medium">Júlia & Miguel</span>
+          <span className="font-playfair text-xl font-medium">Carol & Allan</span>
         </NavLink>
 
         {/* Desktop menu */}
@@ -64,7 +65,19 @@ const Navbar: React.FC = () => {
           <NavLink to="/messages" className={navLinkClasses}>
             Mensagens
           </NavLink>
+          <NavLink to="/admin" className={navLinkClasses}>
+            Área dos Noivos
+          </NavLink>
         </div>
+
+        {/* Admin login button (only on desktop) */}
+        <button 
+          onClick={() => navigate('/login')}
+          className="hidden md:flex items-center gap-2 text-wedding-gold hover:text-wedding-gold/80 transition-colors"
+        >
+          <UserCircle size={20} />
+          <span>Login</span>
+        </button>
 
         {/* Mobile menu button */}
         <button className="md:hidden text-foreground" onClick={toggleMenu}>
@@ -96,6 +109,13 @@ const Navbar: React.FC = () => {
             </NavLink>
             <NavLink to="/messages" className="px-3 py-2 hover:bg-muted rounded-md" onClick={toggleMenu}>
               Mensagens
+            </NavLink>
+            <NavLink to="/admin" className="px-3 py-2 hover:bg-muted rounded-md" onClick={toggleMenu}>
+              Área dos Noivos
+            </NavLink>
+            <NavLink to="/login" className="px-3 py-2 hover:bg-muted rounded-md flex items-center gap-2" onClick={toggleMenu}>
+              <UserCircle size={18} />
+              <span>Login</span>
             </NavLink>
           </div>
         </div>
