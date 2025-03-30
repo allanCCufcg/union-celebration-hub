@@ -11,15 +11,18 @@ import {
   AlertCircle,
   Github,
   Mail,
-  Smartphone
+  Smartphone,
+  ArrowLeft
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from '@/context/AuthContext';
 
-const Login: React.FC = () => {
+const SignUp: React.FC = () => {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<string | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
@@ -41,15 +44,26 @@ const Login: React.FC = () => {
     setCheckingSession(false);
   }, [user, isAdmin, navigate]);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setErrorMessage('');
     
+    if (password !== confirmPassword) {
+      setErrorMessage('As senhas não coincidem');
+      setLoading(false);
+      return;
+    }
+    
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            name
+          }
+        }
       });
 
       if (error) {
@@ -57,19 +71,29 @@ const Login: React.FC = () => {
       }
 
       toast({
-        title: "Login bem-sucedido",
-        description: "Redirecionando...",
+        title: "Cadastro realizado com sucesso",
+        description: "Verifique seu email para confirmar sua conta",
       });
       
+      // Redirecionar para a página de login
+      navigate('/login');
+      
     } catch (error: any) {
-      console.error("Erro de login:", error);
-      setErrorMessage(error.message === "Invalid login credentials" 
-        ? "Email ou senha incorretos"
-        : error.message || "Ocorreu um erro ao fazer login");
+      console.error("Erro no cadastro:", error);
+      
+      // Tratando mensagens de erro comuns
+      let errorMsg = error.message;
+      if (error.message.includes("already registered")) {
+        errorMsg = "Este email já está cadastrado";
+      } else if (error.message.includes("password")) {
+        errorMsg = "A senha deve ter pelo menos 6 caracteres";
+      }
+      
+      setErrorMessage(errorMsg);
       
       toast({
-        title: "Erro ao fazer login",
-        description: "Email ou senha incorretos. Tente novamente.",
+        title: "Erro ao criar conta",
+        description: errorMsg,
         variant: "destructive",
       });
     } finally {
@@ -77,7 +101,7 @@ const Login: React.FC = () => {
     }
   };
 
-  const handleSocialLogin = async (provider: 'google' | 'facebook' | 'github') => {
+  const handleSocialSignUp = async (provider: 'google' | 'facebook' | 'github') => {
     setSocialLoading(provider);
     try {
       const { error } = await supabase.auth.signInWithOAuth({
@@ -91,10 +115,10 @@ const Login: React.FC = () => {
         throw error;
       }
     } catch (error: any) {
-      console.error(`Erro no login com ${provider}:`, error);
+      console.error(`Erro no cadastro com ${provider}:`, error);
       toast({
-        title: `Erro ao fazer login com ${provider}`,
-        description: error.message || `Não foi possível fazer login com ${provider}`,
+        title: `Erro ao cadastrar com ${provider}`,
+        description: error.message || `Não foi possível cadastrar com ${provider}`,
         variant: "destructive",
       });
     } finally {
@@ -102,8 +126,8 @@ const Login: React.FC = () => {
     }
   };
 
-  const handleSignUp = async () => {
-    navigate('/signup');
+  const goToLogin = () => {
+    navigate('/login');
   };
 
   if (checkingSession) {
@@ -122,8 +146,8 @@ const Login: React.FC = () => {
         <div className="container-wedding max-w-md mx-auto">
           <div className="bg-white rounded-lg shadow-md p-8 border border-wedding-rose/10">
             <div className="text-center mb-6">
-              <h1 className="font-playfair text-2xl mb-2">Login</h1>
-              <p className="text-muted-foreground">Faça login para acessar sua área</p>
+              <h1 className="font-playfair text-2xl mb-2">Cadastro</h1>
+              <p className="text-muted-foreground">Crie sua conta para participar do casamento</p>
             </div>
             
             {errorMessage && (
@@ -133,14 +157,34 @@ const Login: React.FC = () => {
               </div>
             )}
             
-            <form onSubmit={handleLogin} className="space-y-4">
+            <form onSubmit={handleSignUp} className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="name" className="block text-sm font-medium">
+                  Nome completo
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <UserCircle className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <Input
+                    id="name"
+                    type="text"
+                    placeholder="Seu nome completo"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+              
               <div className="space-y-2">
                 <label htmlFor="email" className="block text-sm font-medium">
                   Email
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                    <UserCircle className="h-5 w-5 text-muted-foreground" />
+                    <Mail className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <Input
                     id="email"
@@ -170,6 +214,28 @@ const Login: React.FC = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-10"
                     required
+                    minLength={6}
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <label htmlFor="confirmPassword" className="block text-sm font-medium">
+                  Confirmar Senha
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <KeyRound className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="pl-10"
+                    required
+                    minLength={6}
                   />
                 </div>
               </div>
@@ -182,9 +248,9 @@ const Login: React.FC = () => {
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Entrando...
+                    Cadastrando...
                   </>
-                ) : "Entrar"}
+                ) : "Criar conta"}
               </Button>
               
               <div className="relative my-6">
@@ -192,7 +258,7 @@ const Login: React.FC = () => {
                   <div className="w-full border-t border-gray-200"></div>
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white text-muted-foreground">Ou continue com</span>
+                  <span className="px-2 bg-white text-muted-foreground">Ou cadastre-se com</span>
                 </div>
               </div>
               
@@ -200,7 +266,7 @@ const Login: React.FC = () => {
                 <Button 
                   type="button" 
                   variant="outline" 
-                  onClick={() => handleSocialLogin('google')}
+                  onClick={() => handleSocialSignUp('google')}
                   disabled={!!socialLoading}
                   className="w-full"
                 >
@@ -213,7 +279,7 @@ const Login: React.FC = () => {
                 <Button 
                   type="button" 
                   variant="outline" 
-                  onClick={() => handleSocialLogin('facebook')}
+                  onClick={() => handleSocialSignUp('facebook')}
                   disabled={!!socialLoading}
                   className="w-full"
                 >
@@ -226,7 +292,7 @@ const Login: React.FC = () => {
                 <Button 
                   type="button" 
                   variant="outline" 
-                  onClick={() => handleSocialLogin('github')}
+                  onClick={() => handleSocialSignUp('github')}
                   disabled={!!socialLoading}
                   className="w-full"
                 >
@@ -239,22 +305,15 @@ const Login: React.FC = () => {
               </div>
               
               <div className="text-center">
-                <p className="text-sm text-muted-foreground">
-                  Não tem uma conta?{" "}
-                  <Button 
-                    variant="link" 
-                    className="p-0 h-auto text-wedding-gold"
-                    onClick={handleSignUp}
-                  >
-                    Cadastre-se
-                  </Button>
-                </p>
-              </div>
-              
-              <div className="text-center text-sm text-muted-foreground mt-4">
-                <p>Para demonstração:</p>
-                <p>Email: admin@casamento.com</p>
-                <p>Senha: casamento2024</p>
+                <Button 
+                  type="button"
+                  variant="link" 
+                  className="flex items-center justify-center gap-2 mx-auto text-wedding-gold"
+                  onClick={goToLogin}
+                >
+                  <ArrowLeft size={16} />
+                  <span>Voltar para o login</span>
+                </Button>
               </div>
             </form>
           </div>
@@ -264,4 +323,4 @@ const Login: React.FC = () => {
   );
 };
 
-export default Login;
+export default SignUp;

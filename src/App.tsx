@@ -13,6 +13,7 @@ import Rsvp from "./pages/Rsvp";
 import Gallery from "./pages/Gallery";
 import Messages from "./pages/Messages";
 import Login from "./pages/Login";
+import SignUp from "./pages/SignUp";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/gallery" element={<Gallery />} />
             <Route path="/messages" element={<Messages />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<SignUp />} />
             <Route path="/admin" element={<Admin />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

@@ -61,18 +61,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const isUserAdmin = await checkIfAdmin(currentSession.user.email);
           setIsAdmin(isUserAdmin);
           
-          if (event === 'SIGNED_IN' && !isUserAdmin) {
-            // Se logou mas não é admin, fazer logout e mostrar mensagem
-            await supabase.auth.signOut();
-            toast({
-              title: "Acesso negado",
-              description: "Você não tem permissão para acessar a área administrativa.",
-              variant: "destructive",
-            });
-          }
+          // Removendo o logout automático para usuários não-admin
+          // Agora todos os usuários podem fazer login, independentemente de serem admin ou não
         } else {
           setIsAdmin(false);
         }
+        
+        setIsLoading(false);
       }
     );
 
