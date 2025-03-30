@@ -29,50 +29,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  // Function to check if a user is an admin
+  // Função para verificar se um usuário é admin
   const checkIfAdmin = async (email: string) => {
     try {
       const { data, error } = await supabase
         .from('admin_users')
         .select('email')
         .eq('email', email)
-        .maybeSingle();
+        .single();
       
       if (error) {
-        console.error('Error checking admin status:', error);
+        console.error('Erro ao verificar status de admin:', error);
         return false;
       }
       
       return !!data;
     } catch (error) {
-      console.error('Error in admin check:', error);
+      console.error('Erro na verificação de admin:', error);
       return false;
     }
   };
 
   useEffect(() => {
-    // Set up auth listener
+    // Configurar listener de autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, currentSession) => {
+      async (event, currentSession) => {
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
         
-        // Verificar se é admin usando setTimeout para evitar deadlocks
         if (currentSession?.user?.email) {
-          setTimeout(async () => {
-            const isUserAdmin = await checkIfAdmin(currentSession.user.email);
-            setIsAdmin(isUserAdmin);
-            
-            if (event === 'SIGNED_IN' && !isUserAdmin) {
-              // Se logou mas não é admin, fazer logout e mostrar mensagem
-              await supabase.auth.signOut();
-              toast({
-                title: "Acesso negado",
-                description: "Você não tem permissão para acessar a área administrativa.",
-                variant: "destructive",
-              });
-            }
-          }, 0);
+          const isUserAdmin = await checkIfAdmin(currentSession.user.email);
+          setIsAdmin(isUserAdmin);
+          
+          if (event === 'SIGNED_IN' && !isUserAdmin) {
+            // Se logou mas não é admin, fazer logout e mostrar mensagem
+            await supabase.auth.signOut();
+            toast({
+              title: "Acesso negado",
+              description: "Você não tem permissão para acessar a área administrativa.",
+              variant: "destructive",
+            });
+          }
         } else {
           setIsAdmin(false);
         }
@@ -80,17 +77,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     // Verificar sessão inicial
-    supabase.auth.getSession().then(async ({ data: { session: initialSession } }) => {
-      setSession(initialSession);
-      setUser(initialSession?.user ?? null);
-      
-      if (initialSession?.user?.email) {
-        const isUserAdmin = await checkIfAdmin(initialSession.user.email);
-        setIsAdmin(isUserAdmin);
+    const checkSession = async () => {
+      try {
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        
+        setSession(initialSession);
+        setUser(initialSession?.user ?? null);
+        
+        if (initialSession?.user?.email) {
+          const isUserAdmin = await checkIfAdmin(initialSession.user.email);
+          setIsAdmin(isUserAdmin);
+        }
+      } catch (error) {
+        console.error('Erro ao verificar sessão:', error);
+      } finally {
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
-    });
+    };
+
+    checkSession();
 
     return () => {
       subscription.unsubscribe();

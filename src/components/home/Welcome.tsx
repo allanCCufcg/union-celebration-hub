@@ -25,7 +25,7 @@ const Welcome: React.FC = () => {
           </p>
           
           <p className="text-wedding-gold italic font-playfair text-xl">
-            Com carinho, Júlia & Miguel
+            Com carinho, Carol & Allan
           </p>
         </div>
       </div>

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { UserCircle, KeyRound, Loader2 } from 'lucide-react';
+import { UserCircle, KeyRound, Loader2, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from '@/context/AuthContext';
@@ -14,6 +14,7 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
   
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -30,9 +31,10 @@ const Login: React.FC = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMessage('');
     
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -41,20 +43,21 @@ const Login: React.FC = () => {
         throw error;
       }
 
-      // Não redirecionar aqui - o AuthContext vai verificar se é admin
-      // Se não for admin, ele fará logout automaticamente
-      
+      // O redirecionamento será feito pelo useEffect quando isAdmin for atualizado
       toast({
         title: "Login bem-sucedido",
         description: "Verificando suas permissões...",
       });
       
-      // O redirecionamento será feito pelo useEffect quando isAdmin for atualizado
-      
     } catch (error: any) {
+      console.error("Erro de login:", error);
+      setErrorMessage(error.message === "Invalid login credentials" 
+        ? "Email ou senha incorretos"
+        : error.message || "Ocorreu um erro ao fazer login");
+      
       toast({
         title: "Erro ao fazer login",
-        description: error.message || "Email ou senha incorretos. Tente novamente.",
+        description: "Email ou senha incorretos. Tente novamente.",
         variant: "destructive",
       });
       setLoading(false);
@@ -80,6 +83,13 @@ const Login: React.FC = () => {
               <h1 className="font-playfair text-2xl mb-2">Área dos Noivos</h1>
               <p className="text-muted-foreground">Faça login para acessar o painel administrativo</p>
             </div>
+            
+            {errorMessage && (
+              <div className="bg-red-50 text-red-800 p-3 rounded-md mb-4 flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-red-500" />
+                <p className="text-sm">{errorMessage}</p>
+              </div>
+            )}
             
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">

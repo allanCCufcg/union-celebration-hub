@@ -18,6 +18,7 @@ const Gifts: React.FC = () => {
   const { toast } = useToast();
   const [gifts, setGifts] = useState<GiftItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [purchasingId, setPurchasingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchGifts();
@@ -49,6 +50,8 @@ const Gifts: React.FC = () => {
 
   const handlePurchase = async (giftId: string, giftName: string) => {
     try {
+      setPurchasingId(giftId);
+      
       const { error } = await supabase
         .from('gifts')
         .update({
@@ -77,6 +80,8 @@ const Gifts: React.FC = () => {
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setPurchasingId(null);
     }
   };
 
@@ -152,11 +157,21 @@ const Gifts: React.FC = () => {
                       
                       {!gift.purchased && (
                         <button 
-                          className="flex items-center gap-2 bg-wedding-gold text-white px-4 py-2 rounded-full text-sm hover:bg-wedding-gold/90 transition-colors"
+                          className="flex items-center gap-2 bg-wedding-gold text-white px-4 py-2 rounded-full text-sm hover:bg-wedding-gold/90 transition-colors disabled:opacity-70"
                           onClick={() => handlePurchase(gift.id, gift.name)}
+                          disabled={purchasingId === gift.id}
                         >
-                          <Gift className="w-4 h-4" />
-                          <span>Presentear</span>
+                          {purchasingId === gift.id ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>Processando...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Gift className="w-4 h-4" />
+                              <span>Presentear</span>
+                            </>
+                          )}
                         </button>
                       )}
                     </div>
